@@ -1,0 +1,182 @@
+﻿#pragma kernel Ring
+#pragma kernel Circle
+#pragma kernel Wave
+
+#define UNITY_PI	3.14159265359
+#define UNITY_PI2	6.28318530718
+#define ROOT2		1.41421356243
+#define ONE_DIVIDED_BY_ROOT2 0.70710678118
+
+#include "../GPUParticle.cginc"
+#include "../GPUParticleComputeCommon.cginc"
+
+#include "Assets/Common/Shaders/Math.cginc"
+#include "Assets/Common/Shaders/Random.cginc"
+#include "Assets/Common/Shaders/Easing.cginc"
+#include "Assets/Common/Shaders/Noise/SimplexNoise3D.cginc"
+
+float _Size;
+float _Intensity, _Speed;
+float _R;
+float _Time;
+float _DT;
+float _Step;
+
+const float3 center = float3(0, 0, 0);
+
+float3 noisy_axis (float t, float3 seed) {
+	return normalize(float3(
+		snoise(float3(t, 0, 0) + seed),
+		snoise(float3(0, t, 0) + seed),
+		snoise(float3(0, 0, t) + seed)
+	));
+}
+
+float3 noisy_axis (float t) {
+	return noisy_axis(t, float3(0, 0, 0));
+}
+
+float4 rotate_noisy(float t, float3 seed) {
+	float angle = t;
+	float3 axis = noisy_axis(t, seed);
+	return rotate_angle_axis(angle, axis);
+}
+
+float4 rotate_noisy(float t) {
+	return rotate_noisy(t, float3(0, 0, 0));
+}
+
+Particle Ring (uint3 id, Particle p) {
+	float rate = id.x * _R; // particle id rate 0.0 ~ 1.0
+	float z = clamp(p.ori.z, -0.5, 0.5);
+
+	rate = rate * UNITY_PI2;
+
+	float radius = _Size + _Size * snoise(float3(z, _Time * _Speed, 0)) * _Intensity;
+	float x = lerp(-0.5, 0.5, (cos(rate) + 1.0) * 0.5) * radius;
+	float y = lerp(-0.5, 0.5, (sin(rate) + 1.0) * 0.5) * radius;
+
+	float3 pos = float3(x, y, 0.0);
+
+	float4 r = rotate_noisy(_Time * _Speed, float3(0, 0, z) * _Intensity);
+	pos = rotate_vector(pos, r);
+
+	float4x4 m = look_at_matrix(normalize(center - pos), pos, float3(0, 1, 0));
+
+	// p.pos = pos;
+	// p.rot = matrix_to_quaternion(m);
+
+	const float speedScale = 5.0;
+	p.pos = lerp(p.pos, pos, _DT * speedScale);
+	p.rot = lerp(p.rot, matrix_to_quaternion(m), _DT * speedScale);
+	p.scale = lerp(p.scale, float3(1, 1, 1), _DT * speedScale);
+
+	return p;
+}
+
+Particle Wave (uint3 id, Particle p) {
+
+	float _BorderR = 0.1;
+	float _BorderEdge = 0.025; // _BorderR / 4.0
+	float _BorderHeight = 20.0;
+	float _BorderSize = 3.5;
+
+	float rate = id.x * _R; // particle id rate 0.0 ~ 1.0
+
+	float y = floor(rate / _BorderR) / 10.0 * _BorderHeight;
+	float row = fmod(rate, _BorderR); // 0.0 ~ r
+	float edge = fmod(row, _BorderEdge); // 0.0 ~ rr(r / 4)
+	float theta = (edge / _BorderEdge) * UNITY_PI2;
+
+	/*
+	// circle to square
+	float c = cos(theta);
+	float s = sin(theta);
+	float signx = c > 0.0 ? 1.0 : -1.0;
+	float signz = s > 0.0 ? 1.0 : -1.0;
+	float radius = _Size + snoise(float3(0, y + _Time, 0)) * (_Size * 0.5);
+	float x = min(ONE_DIVIDED_BY_ROOT2, abs(c)) * radius;
+	float z = min(ONE_DIVIDED_BY_ROOT2, abs(s)) * radius;
+	float3 pos = float3(x * signx, (y - _BorderHeight * 0.5) + sin(_Time) * 0.5, z * signz);
+	*/
+
+	float x = _Size * _BorderSize * cos(theta);
+	float z = _Size * _BorderSize * sin(theta);
+	float3 pos = float3(x, (y - _BorderHeight * 0.5) + sin(_Time) * 0.5, z);
+
+	float4 r = rotate_angle_axis(snoise(float3(0.0, _Time * 0.05 + y, 0.0) * 1.0) * 15.0, float3(0, 1, 0));
+	pos = rotate_vector(pos, r);
+
+	const float speedScale = 5.0;
+
+	p.pos = lerp(p.pos, pos, _DT * speedScale);
+
+	// p.rot = lerp(p.rot, float4(0, 0, 0, 1), _DT);
+	float4x4 m = look_at_matrix(normalize(center - p.pos), p.pos, float3(0, 1, 0));
+	p.rot = lerp(p.rot, matrix_to_quaternion(m), _DT * speedScale);
+
+	float sc = (snoise(float3(p.pos.x, 0.0, p.pos.z) * 5.0 + float3(0.0, _Time, 0.0)) + 1.0) * 0.5 * 35.0;
+	p.scale = lerp(p.scale, float3(1, 1.0 + sc, 1), saturate(_DT * 10.0));
+
+	return p;
+
+}
+
+Particle Circle (uint3 id, Particle p) {
+	float _CircleCount = 100.0;
+	float _CircleR = 1.0 / _CircleCount;
+	float _CircleSize = 1.5;
+
+	float rate = id.x * _R; // particle id rate 0.0 ~ 1.0
+
+	float index = floor(rate / _CircleR) + 1.0;
+	float row = fmod(rate, _CircleR); // 0.0 ~ r
+	float theta = (row / _CircleR) * UNITY_PI2;
+
+	float x = _Size * _CircleSize * cos(theta) * index;
+	float y = snoise(float3(0, _Time + index, 0));
+	float z = _Size * _CircleSize * sin(theta) * index;
+	float3 pos = float3(x, sin(_Time) * 0.5, z);
+
+	float4 r = rotate_angle_axis(_Time, float3(0, 1, 0));
+	pos = rotate_vector(pos, r);
+
+	const float speedScale = 5.0;
+
+	p.pos = lerp(p.pos, pos, _DT * speedScale);
+
+	float4x4 m = look_at_matrix(normalize(center - p.pos), p.pos, float3(0, 1, 0));
+	p.rot = lerp(p.rot, matrix_to_quaternion(m), _DT * speedScale);
+
+	p.scale = lerp(p.scale, float3(1, 1.0 + 7.0, 1), saturate(_DT * 10.0));
+
+	return p;
+}
+
+[numthreads(THREAD_X, THREAD_Y, THREAD_Z)]
+void Ring (uint3 id : SV_DispatchThreadID) {	
+	Particle p = _Particles[id.x];
+	if(!p.reactive) {
+		p = Ring(id, p);
+		_Particles[id.x] = p;
+	}
+}
+
+[numthreads(THREAD_X, THREAD_Y, THREAD_Z)]
+void Circle (uint3 id : SV_DispatchThreadID) {	
+	Particle p = _Particles[id.x];
+	if(!p.reactive) {
+		p = Circle(id, p);
+		_Particles[id.x] = p;
+	}
+}
+
+[numthreads(THREAD_X, THREAD_Y, THREAD_Z)]
+void Wave (uint3 id : SV_DispatchThreadID) {	
+	Particle p = _Particles[id.x];
+	if(!p.reactive) {
+		p = Wave(id, p);
+		_Particles[id.x] = p;
+	}
+}
+

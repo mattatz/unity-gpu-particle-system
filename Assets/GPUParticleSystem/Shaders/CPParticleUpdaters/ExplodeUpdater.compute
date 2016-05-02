@@ -1,0 +1,28 @@
+﻿#pragma kernel Explode
+
+#include "../GPUParticle.cginc"
+#include "../GPUParticleComputeCommon.cginc"
+
+struct Explosion {
+	float3 pos;
+	float radius;
+	float intensity;
+};
+
+StructuredBuffer<Explosion> _Explosions;
+int _ExplosionsCount;
+
+[numthreads(THREAD_X, THREAD_Y, THREAD_Z)]
+void Explode (uint3 id : SV_DispatchThreadID) {
+	Particle p = _Particles[id.x];
+
+	for(int i = 0; i < _ExplosionsCount; i++) {
+		Explosion explosion =  _Explosions[i];
+		float3 dir = p.pos - explosion.pos;
+		if(length(dir) < explosion.radius) {
+			p.gravity = true;
+			p.acc += normalize(p.pos) * explosion.intensity;
+		}
+	}
+	_Particles[id.x] = p;
+}

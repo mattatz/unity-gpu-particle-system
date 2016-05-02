@@ -1,0 +1,69 @@
+﻿#pragma kernel Extrude
+#pragma kernel Octree
+
+#include "../GPUParticle.cginc"
+#include "../GPUParticleComputeCommon.cginc"
+
+#define UNITY_PI 3.14159265359
+#define UNITY_PI2 6.28318530718
+
+#include "Assets/Common/Shaders/Math.cginc"
+#include "Assets/Common/Shaders/Random.cginc"
+#include "Assets/Common/Shaders/Noise/SimplexNoiseGrad3D.cginc"
+
+struct Bound {
+	float3 pos;
+	float3 size;
+	float4x4 TRS;
+	bool reactive;
+};
+
+StructuredBuffer<Bound> _Bounds;
+int _BoundsCount;
+RWStructuredBuffer<int> _BoundsReferences;
+
+float _Intensity, _T;
+
+[numthreads(THREAD_X, THREAD_Y, THREAD_Z)]
+void Extrude (uint3 id : SV_DispatchThreadID) {
+	Particle p = _Particles[id.x];
+	int ref = _BoundsReferences[id.x];
+
+	if(!p.reactive && ref >= 0) {
+		Bound b = _Bounds[ref];
+		
+		p.pos = lerp(p.ori, mul(b.TRS, float4(p.ori - b.pos, 1.0)).xyz + b.pos, _T);
+		p.rot = lerp(float4(0, 0, 0, 1), matrix_to_quaternion(b.TRS), _T);
+		p.reactive = b.reactive;
+
+		// p.pos = lerp(p.ori, mul(b.TRS, float4(float3(b.pos - p.ori), 1.0)).xyz + p.ori, _T);
+		// p.pos = lerp(p.ori, mul(b.TRS, float4(p.ori, 1.0)).xyz, _T);
+	}
+
+	_Particles[id.x] = p;
+}
+
+bool contains (Bound b, float3 pos) {
+	return (
+		abs(pos.x - b.pos.x) <= b.size.x && 
+		abs(pos.y - b.pos.y) <= b.size.y && 
+		abs(pos.z - b.pos.z) <= b.size.z
+	);
+}
+
+[numthreads(THREAD_X, THREAD_Y, THREAD_Z)]
+void Octree (uint3 id : SV_DispatchThreadID) {
+	Particle p = _Particles[id.x];
+
+	int index = -1;
+
+	for(int i = 0; i < _BoundsCount; i++) {
+		Bound b = _Bounds[i];
+		if(contains(b, p.ori)) {
+			index = i;
+			break;
+		}
+	}
+
+	_BoundsReferences[id.x] = index;
+}

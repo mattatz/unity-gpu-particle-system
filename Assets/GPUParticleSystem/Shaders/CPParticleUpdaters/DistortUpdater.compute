@@ -1,0 +1,29 @@
+﻿#pragma kernel Noise
+#pragma kernel Twist
+
+#define UNITY_PI 3.14159265359
+#define UNITY_PI2 6.28318530718
+
+#include "../GPUParticle.cginc"
+#include "../GPUParticleComputeCommon.cginc"
+
+#include "Assets/Common/Shaders/Random.cginc"
+#include "Assets/Common/Shaders/Noise/SimplexNoiseGrad3D.cginc"
+
+float _Scale;
+float _Intensity;
+float _DT;
+float _Time;
+
+[numthreads(THREAD_X, THREAD_Y, THREAD_Z)]
+void Noise (uint3 id : SV_DispatchThreadID) {
+	Particle p = _Particles[id.x];
+
+	if(!p.reactive) {
+		float3 distorted = p.ori + snoise_grad((p.ori + float3(0, _Time, 0)) * _Scale) * _Intensity;
+		p.pos = lerp(p.pos, distorted, _DT);
+	}
+
+	_Particles[id.x] = p;
+}
+

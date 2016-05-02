@@ -1,0 +1,61 @@
+﻿#pragma kernel Init
+#pragma kernel Update
+#pragma kernel Copy
+
+#define UNITY_PI 3.14159265359
+#define UNITY_PI2 6.28318530718
+
+#include "Assets/Common/Shaders/Random.cginc"
+#include "Assets/Common/Shaders/Math.cginc"
+
+#include "./GPUParticle.cginc"
+#include "./GPUParticleComputeCommon.cginc"
+
+float4 _Time;
+float _DT;
+
+float _Deceleration;
+
+float4 update_rotation(float2 seed, float4 r, float3 v) {
+	float theta = (length(v) * 0.1);
+
+	// Spin quaternion
+	float4 dq = float4(random_point_on_sphere(seed) * sin(theta), cos(theta));
+
+	// Applying the quaternion and normalize the result.
+	return normalize(qmul(dq, r));
+}
+
+[numthreads(THREAD_X, THREAD_Y, THREAD_Z)]
+void Init (uint3 id : SV_DispatchThreadID) {
+	Particle p = _Particles[id.x];
+	p.pos = lerp(p.pos, p.ori, _DT);
+	p.rot = lerp(p.rot, float4(0, 0, 0, 1), _DT);
+	p.vel *= 0;
+	p.acc *= 0;
+	_Particles[id.x] = p;
+}
+
+[numthreads(THREAD_X, THREAD_Y, THREAD_Z)]
+void Update (uint3 id : SV_DispatchThreadID) {
+	Particle p = _Particles[id.x];
+
+	p.vel += p.acc * p.mass * _DT;
+	p.pos += p.vel * _DT;
+	p.rot = update_rotation(id.xy, p.rot, p.vel);
+
+	p.vel *= saturate(_Deceleration);
+	p.acc *= 0.0;
+
+	_Particles[id.x] = p;
+}
+
+RWStructuredBuffer<Particle> _Destination;
+
+[numthreads(THREAD_X, THREAD_Y, THREAD_Z)]
+void Copy (uint3 id : SV_DispatchThreadID) {
+	Particle p = _Particles[id.x];
+	_Destination[id.x] = p;
+}
+
+

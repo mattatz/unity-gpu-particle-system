@@ -1,0 +1,16 @@
+﻿#pragma kernel Graviate
+
+#include "../GPUParticle.cginc"
+#include "../GPUParticleComputeCommon.cginc"
+
+float3 _GravityDirection;
+float _Gravity;
+
+[numthreads(THREAD_X, THREAD_Y, THREAD_Z)]
+void Graviate (uint3 id : SV_DispatchThreadID) {
+	Particle p = _Particles[id.x];
+	if(p.gravity) {
+		p.acc += normalize(_GravityDirection) * _Gravity * p.mass;
+	}
+	_Particles[id.x] = p;
+}

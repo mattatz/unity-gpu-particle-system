@@ -1,0 +1,59 @@
+﻿#pragma kernel DistanceField
+
+#include "../GPUParticle.cginc"
+#include "../GPUParticleComputeCommon.cginc"
+
+#define UNITY_PI 3.14159265359
+#define UNITY_PI2 6.28318530718
+
+#include "Assets/Common/Shaders/Math.cginc"
+#include "Assets/Common/Shaders/Random.cginc"
+#include "Assets/Common/Shaders/Easing.cginc"
+#include "Assets/Common/Shaders/Noise/SimplexNoise3D.cginc"
+
+float _Time;
+
+float3 noisy_axis (float t, float3 seed) {
+	return normalize(float3(
+		snoise(float3(t, 0, 0) + seed),
+		snoise(float3(0, t, 0) + seed),
+		snoise(float3(0, 0, t) + seed)
+	));
+}
+
+float3 noisy_axis (float t) {
+	return noisy_axis(t, float3(0, 0, 0));
+}
+
+float4 rotate_noisy(float t, float3 seed) {
+	float angle = t;
+	float3 axis = noisy_axis(t, seed);
+	return rotate_angle_axis(angle, axis);
+}
+
+float4 rotate_noisy(float t) {
+	return rotate_noisy(t, float3(0, 0, 0));
+}
+
+float box (float3 pos) {
+	float mx = max(smoothstep(-0.4, -0.5, pos.x), smoothstep(0.4, 0.5, pos.x));
+	float my = max(smoothstep(-0.4, -0.5, pos.y), smoothstep(0.4, 0.5, pos.y));
+	float mz = max(smoothstep(-0.4, -0.5, pos.z), smoothstep(0.4, 0.5, pos.z));
+	return max(max(mx * my, my * mz), mz * mx);
+}
+
+float lattice (float3 pos) {
+	pos *= (sin(_Time) + 2.5) * 3.5;
+	pos = fmod(pos, float3(0.5, 0.5, 0.5));
+	return box(pos);
+}
+
+[numthreads(THREAD_X, THREAD_Y, THREAD_Z)]
+void DistanceField (uint3 id : SV_DispatchThreadID) {
+	Particle p = _Particles[id.x];
+
+	float d = lattice(p.ori);
+	p.scale = float3(d, d, d);
+
+	_Particles[id.x] = p;
+}

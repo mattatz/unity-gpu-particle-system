@@ -1,0 +1,34 @@
+﻿#pragma kernel Init
+
+#include "../GPUParticle.cginc"
+#include "../GPUParticleComputeCommon.cginc"
+
+struct TRS {
+	float3 pos;
+	float4 rot;
+	float3 scale;
+};
+
+float _T;
+StructuredBuffer<TRS> _From;
+StructuredBuffer<TRS> _To;
+
+[numthreads(THREAD_X, THREAD_Y, THREAD_Z)]
+void Init (uint3 id : SV_DispatchThreadID) {
+	Particle p = _Particles[id.x];
+
+	TRS from = _From[id.x];
+	TRS to = _To[id.x];
+
+	p.pos = lerp(from.pos, to.pos, _T);
+	p.rot = lerp(from.rot, to.rot, _T);
+	p.scale = lerp(from.scale, to.scale, _T);
+	p.lifetime = lerp(p.lifetime, 0.5, _T);
+	p.reactive = false;
+
+	p.vel *= 0.0;
+	p.acc *= 0.0;
+
+	_Particles[id.x] = p;
+}
+

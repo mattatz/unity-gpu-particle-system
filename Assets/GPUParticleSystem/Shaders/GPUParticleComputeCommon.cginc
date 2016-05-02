@@ -1,0 +1,10 @@
+#ifndef _PARTICLE_COMPUTE_COMMON_INCLUDED_
+#define _PARTICLE_COMPUTE_COMMON_INCLUDED_
+
+#define THREAD_X 8
+#define THREAD_Y 1
+#define THREAD_Z 1
+
+RWStructuredBuffer<Particle> _Particles;
+
+#endif // _PARTICLE_COMPUTE_COMMON_INCLUDED_

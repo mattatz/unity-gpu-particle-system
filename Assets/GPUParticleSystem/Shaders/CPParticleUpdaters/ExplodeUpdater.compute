@@ -20,7 +20,7 @@ void Explode (uint3 id : SV_DispatchThreadID) {
 		Explosion explosion =  _Explosions[i];
 		float3 dir = p.pos - explosion.pos;
 		if(length(dir) < explosion.radius) {
-			p.gravity = true;
+			p.reactive = true;
 			p.acc += normalize(p.pos) * explosion.intensity;
 		}
 	}

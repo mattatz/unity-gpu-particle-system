@@ -25,7 +25,7 @@ float3 dfnoise_field(float3 p, float k) {
 void Noise (uint3 id : SV_DispatchThreadID) {
 	Particle p = _Particles[id.x];
 
-	if(p.gravity) {
+	if(p.reactive) {
 		p.acc += dfnoise_field(p.pos * _Scale + float3(0, _Time, 0), 1.0) * _Intensity;
 	}
 

@@ -20,7 +20,7 @@ namespace mattatz {
         public Vector3 vel;
         public Vector3 acc;
         public Color color;
-        public bool gravity;
+        public bool reactive;
 
         public GPUParticle(float m, Vector3 p, Quaternion r, Vector3 s, Vector3 v, Vector3 a, Color c) {
             mass = m;
@@ -31,7 +31,7 @@ namespace mattatz {
             vel = v;
             acc = a;
             color = c;
-            gravity = false;
+            reactive = false;
         }
     };
 

@@ -9,7 +9,7 @@ float _Gravity;
 [numthreads(THREAD_X, THREAD_Y, THREAD_Z)]
 void Graviate (uint3 id : SV_DispatchThreadID) {
 	Particle p = _Particles[id.x];
-	if(p.gravity) {
+	if(p.reactive) {
 		p.acc += normalize(_GravityDirection) * _Gravity * p.mass;
 	}
 	_Particles[id.x] = p;

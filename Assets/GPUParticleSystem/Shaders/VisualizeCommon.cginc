@@ -1,4 +1,3 @@
-
 #pragma target 5.0
 
 #include "UnityCG.cginc"
@@ -62,10 +61,10 @@ v2g vert(appdata IN, uint id : SV_VertexID) {
 }
 
 void add_face(v2g v, in g2f pIn, inout TriangleStream<g2f> OUT, float4 p[4]) {
-	float4x4 vp = mul(UNITY_MATRIX_VP, _Object2World);
+	float4x4 mvp = UNITY_MATRIX_MVP;
 
-	pIn.pos = mul(vp, p[0]);
-	pIn.wpos = mul(_Object2World, p[0]);
+	pIn.pos = mul(mvp, p[0]);
+	pIn.wpos = mul(unity_ObjectToWorld, p[0]);
 	pIn.lightDir = ObjSpaceLightDir(p[0]);
 	pIn.viewDir = ObjSpaceViewDir(p[0]);
 
@@ -81,8 +80,8 @@ void add_face(v2g v, in g2f pIn, inout TriangleStream<g2f> OUT, float4 p[4]) {
 
 	OUT.Append(pIn);
 
-	pIn.pos = mul(vp, p[1]);
-	pIn.wpos = mul(_Object2World, p[1]);
+	pIn.pos = mul(mvp, p[1]);
+	pIn.wpos = mul(unity_ObjectToWorld, p[1]);
 	pIn.lightDir = ObjSpaceLightDir(p[1]);
 	pIn.viewDir = ObjSpaceViewDir(p[1]);
 
@@ -98,8 +97,8 @@ void add_face(v2g v, in g2f pIn, inout TriangleStream<g2f> OUT, float4 p[4]) {
 
 	OUT.Append(pIn);
 
-	pIn.pos = mul(vp, p[2]);
-	pIn.wpos = mul(_Object2World, p[2]);
+	pIn.pos = mul(mvp, p[2]);
+	pIn.wpos = mul(unity_ObjectToWorld, p[2]);
 	pIn.lightDir = ObjSpaceLightDir(p[2]);
 	pIn.viewDir = ObjSpaceViewDir(p[2]);
 	pIn.uv = float2(0.0f, 0.0f);
@@ -114,8 +113,8 @@ void add_face(v2g v, in g2f pIn, inout TriangleStream<g2f> OUT, float4 p[4]) {
 
 	OUT.Append(pIn);
 
-	pIn.pos = mul(vp, p[3]);
-	pIn.wpos = mul(_Object2World, p[3]);
+	pIn.pos = mul(mvp, p[3]);
+	pIn.wpos = mul(unity_ObjectToWorld, p[3]);
 	pIn.lightDir = ObjSpaceLightDir(p[3]);
 	pIn.viewDir = ObjSpaceViewDir(p[3]);
 	pIn.uv = float2(0.0f, 1.0f);

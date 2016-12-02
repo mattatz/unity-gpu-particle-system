@@ -38,6 +38,14 @@ namespace mattatz {
     public class GPUParticleSystem : MonoBehaviour {
 
         public ComputeBuffer ParticleBuffer { get { return buffer; } }
+        public MaterialPropertyBlock block {
+            get {
+                if(_block == null) {
+                    _block = new MaterialPropertyBlock();
+                }
+                return _block;
+            }
+        }
         public List<GPUParticleUpdater> updaters;
 
         [SerializeField] Color color = Color.white;
@@ -49,6 +57,7 @@ namespace mattatz {
         Mesh mesh;
         GPUParticle[] particles;
         ComputeBuffer buffer;
+        MaterialPropertyBlock _block;
 
         const int _Thread = 8;
 
@@ -73,7 +82,7 @@ namespace mattatz {
                 }
             }
 
-            particleDisplayMat.SetFloat("_Size", scale);
+            block.SetFloat("_Size", scale);
 
             mesh = Build(sideCount);
         }
@@ -94,9 +103,9 @@ namespace mattatz {
 
             Dispatch("Update");
 
-            particleDisplayMat.SetBuffer("_Particles", buffer);
-            particleDisplayMat.SetColor("_Color", color);
-            Graphics.DrawMesh(mesh, transform.localToWorldMatrix, particleDisplayMat, 0);
+            block.SetBuffer("_Particles", buffer);
+            block.SetColor("_Color", color);
+            Graphics.DrawMesh(mesh, transform.localToWorldMatrix, particleDisplayMat, 0, null, 0, block);
         }
 
         void Dispatch (string key) {
